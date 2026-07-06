@@ -1,0 +1,133 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "id": "cust_mst"
+    },
+    {
+      "id": "cust_addr"
+    },
+    {
+      "id": "region_lkp"
+    },
+    {
+      "id": "ord_hdr"
+    },
+    {
+      "id": "ord_dtl_2"
+    },
+    {
+      "id": "item_mst"
+    },
+    {
+      "id": "employee"
+    },
+    {
+      "id": "department"
+    },
+    {
+      "id": "emp_dept_assign"
+    },
+    {
+      "id": "vendor_mst"
+    },
+    {
+      "id": "gl_account"
+    },
+    {
+      "id": "lead"
+    }
+  ],
+  "links": [
+    {
+      "left_table": "cust_addr",
+      "left_col": "cust_id",
+      "right_table": "cust_mst",
+      "right_col": "cust_id",
+      "declared": true,
+      "label": "customer_address",
+      "confidence": 1.0,
+      "source": "cust_mst",
+      "target": "cust_addr"
+    },
+    {
+      "left_table": "ord_hdr",
+      "left_col": "cust_id",
+      "right_table": "cust_mst",
+      "right_col": "cust_id",
+      "declared": true,
+      "label": "placed_by",
+      "confidence": 1.0,
+      "source": "cust_mst",
+      "target": "ord_hdr"
+    },
+    {
+      "left_table": "cust_addr",
+      "left_col": "region_cd",
+      "right_table": "region_lkp",
+      "right_col": "region_cd",
+      "declared": true,
+      "label": "in_region",
+      "confidence": 1.0,
+      "source": "cust_addr",
+      "target": "region_lkp"
+    },
+    {
+      "left_table": "ord_dtl_2",
+      "left_col": "ord_id",
+      "right_table": "ord_hdr",
+      "right_col": "ord_id",
+      "declared": true,
+      "label": "has_line_item",
+      "confidence": 1.0,
+      "source": "ord_hdr",
+      "target": "ord_dtl_2"
+    },
+    {
+      "left_table": "ord_dtl_2",
+      "left_col": "item_id",
+      "right_table": "item_mst",
+      "right_col": "item_id",
+      "declared": false,
+      "label": "for_item",
+      "confidence": 0.8,
+      "source": "ord_dtl_2",
+      "target": "item_mst"
+    },
+    {
+      "left_table": "department",
+      "left_col": "manager_emp_id",
+      "right_table": "employee",
+      "right_col": "emp_id",
+      "declared": true,
+      "label": "manages",
+      "confidence": 1.0,
+      "source": "employee",
+      "target": "department"
+    },
+    {
+      "left_table": "emp_dept_assign",
+      "left_col": "emp_id",
+      "right_table": "employee",
+      "right_col": "emp_id",
+      "declared": true,
+      "label": "works_in",
+      "confidence": 1.0,
+      "source": "employee",
+      "target": "emp_dept_assign"
+    },
+    {
+      "left_table": "emp_dept_assign",
+      "left_col": "dept_id",
+      "right_table": "department",
+      "right_col": "dept_id",
+      "declared": true,
+      "label": "works_in",
+      "confidence": 1.0,
+      "source": "department",
+      "target": "emp_dept_assign"
+    }
+  ]
+}

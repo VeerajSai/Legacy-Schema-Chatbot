@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# generated at build time, not source
+data/*.db
+logs/*.jsonl
+catalog/artifacts/*.json
+!catalog/artifacts/.gitkeep
+eval/golden_set_resolved.jsonl
+
+.pytest_cache/
+.claude/

@@ -1,0 +1,14 @@
+faker
+pyyaml
+networkx
+sqlglot
+rank-bm25
+sentence-transformers
+numpy
+anthropic
+fastapi
+uvicorn
+streamlit
+pydantic
+pytest
+requests

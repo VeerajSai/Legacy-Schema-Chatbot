@@ -1,0 +1,600 @@
+[
+  {
+    "table": "cust_mst",
+    "module": "sales",
+    "description": "Customer master: core customer identity and classification records",
+    "row_count": 600,
+    "columns": [
+      {
+        "name": "cust_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "cust_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "cust_type",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": [
+          "RETAIL",
+          "WHOLESALE",
+          "ONLINE"
+        ],
+        "nullable": true
+      },
+      {
+        "name": "country_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": "country_lkp.country_cd",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "customers",
+      "clients"
+    ]
+  },
+  {
+    "table": "cust_addr",
+    "module": "sales",
+    "description": "Customer address book: shipping and billing addresses linked to customers and sales regions",
+    "row_count": 750,
+    "columns": [
+      {
+        "name": "addr_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "cust_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "cust_mst.cust_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "region_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": "region_lkp.region_cd",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "addr_line",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "city",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "addresses",
+      "shipping address"
+    ]
+  },
+  {
+    "table": "region_lkp",
+    "module": "sales",
+    "description": "Sales region lookup: geographic region codes and names used for territory reporting",
+    "row_count": 5,
+    "columns": [
+      {
+        "name": "region_cd",
+        "dtype": "TEXT",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "region_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "regions",
+      "territories"
+    ]
+  },
+  {
+    "table": "ord_hdr",
+    "module": "sales",
+    "description": "Order header: one row per customer order with status and currency",
+    "row_count": 4000,
+    "columns": [
+      {
+        "name": "ord_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "cust_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "cust_mst.cust_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "sales_rep_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "sales_rep_map.rep_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "order_dt",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "status_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": [
+          "PLACED",
+          "SHIPPED",
+          "CANCELLED",
+          "RETURNED"
+        ],
+        "nullable": true
+      },
+      {
+        "name": "currency_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": "currency_lkp.currency_cd",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "orders",
+      "order header"
+    ]
+  },
+  {
+    "table": "ord_dtl_2",
+    "module": "sales",
+    "description": "Order line detail: quantity and unit price recorded per line item within an order",
+    "row_count": 9000,
+    "columns": [
+      {
+        "name": "ord_dtl_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "ord_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "ord_hdr.ord_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "item_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "item_mst.item_id",
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "qty",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "unit_price",
+        "dtype": "REAL",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "line_status",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": [
+          "OPEN",
+          "SHIPPED",
+          "CANCELLED",
+          "RETURNED"
+        ],
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "order lines",
+      "order line items",
+      "line items"
+    ]
+  },
+  {
+    "table": "item_mst",
+    "module": "inventory",
+    "description": "Item master: product catalog with unit of measure and weight",
+    "row_count": 1200,
+    "columns": [
+      {
+        "name": "item_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "item_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "uom_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": "item_uom.uom_cd",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "unit_wt",
+        "dtype": "REAL",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "items",
+      "products"
+    ]
+  },
+  {
+    "table": "employee",
+    "module": "hr",
+    "description": "Employee master: core employee identity and hire records",
+    "row_count": 350,
+    "columns": [
+      {
+        "name": "emp_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "emp_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "hire_dt",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "country_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": "country_lkp.country_cd",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "employees",
+      "staff"
+    ]
+  },
+  {
+    "table": "department",
+    "module": "hr",
+    "description": "Department master: organizational departments and their managers",
+    "row_count": 22,
+    "columns": [
+      {
+        "name": "dept_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "dept_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "manager_emp_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "employee.emp_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "departments",
+      "depts"
+    ]
+  },
+  {
+    "table": "emp_dept_assign",
+    "module": "hr",
+    "description": "Employee-department assignment: bridge table linking employees to the departments they work in",
+    "row_count": 360,
+    "columns": [
+      {
+        "name": "assign_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "emp_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "employee.emp_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "dept_id",
+        "dtype": "INTEGER",
+        "is_pk": false,
+        "fk": "department.dept_id",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "employee department assignment",
+      "works in"
+    ]
+  },
+  {
+    "table": "vendor_mst",
+    "module": "purchasing",
+    "description": "Vendor master: supplier identity and country of origin",
+    "row_count": 250,
+    "columns": [
+      {
+        "name": "vendor_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "vendor_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "country_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": "country_lkp.country_cd",
+        "fk_declared": true,
+        "distinct_values": null,
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "vendors",
+      "suppliers"
+    ]
+  },
+  {
+    "table": "gl_account",
+    "module": "finance",
+    "description": "General ledger account: chart of accounts used for financial postings",
+    "row_count": 60,
+    "columns": [
+      {
+        "name": "gl_acct_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "acct_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "acct_type",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": [
+          "ASSET",
+          "LIABILITY",
+          "EQUITY",
+          "REVENUE",
+          "EXPENSE"
+        ],
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "gl accounts",
+      "chart of accounts"
+    ]
+  },
+  {
+    "table": "lead",
+    "module": "crm",
+    "description": "Sales lead: prospective customer captured before conversion to an opportunity",
+    "row_count": 1100,
+    "columns": [
+      {
+        "name": "lead_id",
+        "dtype": "INTEGER",
+        "is_pk": true,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "lead_nm",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": null,
+        "nullable": true
+      },
+      {
+        "name": "source_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": [
+          "WEB",
+          "REFERRAL",
+          "EVENT",
+          "COLD_CALL"
+        ],
+        "nullable": true
+      },
+      {
+        "name": "status_cd",
+        "dtype": "TEXT",
+        "is_pk": false,
+        "fk": null,
+        "fk_declared": false,
+        "distinct_values": [
+          "NEW",
+          "QUALIFIED",
+          "DISQUALIFIED",
+          "CONVERTED"
+        ],
+        "nullable": true
+      }
+    ],
+    "synonyms": [
+      "leads",
+      "prospects"
+    ]
+  }
+]

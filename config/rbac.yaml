@@ -1,0 +1,16 @@
+# Role -> allowed modules. Enforced at retrieval filtering (a restricted role
+# never even sees candidate tables outside its modules) and re-enforced at the
+# AST policy-lint stage (belt and suspenders, per doc section 8).
+roles:
+  admin:
+    modules: [sales, purchasing, inventory, hr, finance, crm, core]
+  sales_analyst:
+    modules: [sales, crm, inventory, core]
+  finance_analyst:
+    modules: [finance, purchasing, core]
+  hr_admin:
+    modules: [hr, core]
+  exec:
+    modules: [sales, finance, crm, core]
+
+default_role: sales_analyst
