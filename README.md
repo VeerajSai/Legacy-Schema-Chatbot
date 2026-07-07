@@ -1,4 +1,4 @@
-# Schemantic
+# Legacy Schema Chatbot
 
 **A natural-language chatbot for a 74-table legacy database that nobody
 remembers the schema for.**
@@ -6,7 +6,7 @@ remembers the schema for.**
 Legacy schemas don't fail on the SQL — `SELECT`, `JOIN`, `WHERE` are the easy
 part. They fail on knowing *which of 74 cryptically-named tables* even
 matters for a given question, and how they actually connect (`ord_dtl_2`?
-`emp_dept_assign`?). Schemantic's answer is schema linking, not prompt
+`emp_dept_assign`?). This project's answer is schema linking, not prompt
 stuffing: retrieve the ~5-8 relevant tables out of 74 via hybrid search,
 expand across the join graph to pull in the bridge tables nobody would think
 to name, prune to the columns that matter, then hand a small, precise slice
@@ -86,24 +86,41 @@ expected, not a bug, and this run's real purpose is to prove the plumbing
 caching) holds together end to end:
 
 ```
+########## Role: admin ##########
 === Execution accuracy (stub LLM, no API key) ===
 Overall: 0/56 (0.0%)
-  agg_window                   0/10 (0.0%)
-  join_2_3                     0/20 (0.0%)
-  multi_hop_cross_module       0/14 (0.0%)
-  single_table                 0/12 (0.0%)
 
 === Table recall@k ===
 51/56 (91.1%) -- target 95%
 
-Errors/exceptions: 0/56
+########## Role: sales_analyst ##########
+=== Execution accuracy (stub LLM, no API key) ===
+Overall: 0/56 (0.0%)
+
+=== Table recall@k ===
+25/56 (44.6%) -- target 95%
+
+Errors/exceptions: 0/56 (both roles)
 ```
 
 Table recall@k doesn't need a live model — it only checks that hybrid
 retrieval + graph expansion (stages 3-4) surface every table the golden
 question actually needs, so it's the one real accuracy signal available
 without an API key. `eval/run_eval.py` clears the query cache before each
-run so a cache hit (which skips retrieval) can't silently zero this out.
+run (a cache hit skips retrieval, which would otherwise silently zero this
+out) and now reports both `admin` and `sales_analyst` — the UI's default,
+RBAC-restricted role — separately, since an admin-only number hides what a
+real restricted-role user actually experiences.
+
+**Why `sales_analyst` recall is so much lower, and why that's correct, not a
+regression:** the 56-question golden set was written against the full
+schema, not stratified per role, so a large share of it asks about
+finance/HR/purchasing data a `sales_analyst` is never allowed to see by
+design (`config/rbac.yaml`). RBAC filtering rejects those tables at
+retrieval time before graph expansion or column pruning ever run, so recall
+against a role-appropriate question set would read much closer to the admin
+number. This is the RBAC gate doing its job, surfaced honestly instead of
+hidden behind an admin-only metric.
 
 Confirmed working in this same integration pass (see `ARCHITECTURE.md` for
 the stages involved):
@@ -123,6 +140,42 @@ the stages involved):
 Set `ANTHROPIC_API_KEY` and re-run `python -m eval.run_eval` for real
 execution-accuracy numbers — the harness and golden set are ready, the
 only missing ingredient is a live model.
+
+## Hardening pass
+
+After the initial build, a second review pass (three independent reads over
+the whole codebase, each verified against the actual running code rather
+than trusted at face value) found and fixed real correctness bugs, not just
+polish:
+- The join-graph builder was synthesizing a fake edge to represent the
+  "manages"-vs-"works_in" disjoint-path trap — a 1-hop shortcut with no real
+  foreign key behind it, marked as if it were a declared FK. Since the
+  prompt renders join paths literally as instructions to the model, this
+  could have produced a real join on two unrelated surrogate keys that
+  happen to be small overlapping integers. Fixed by deleting the synthetic
+  edge; the existing alternate-path search already finds the real two-hop
+  route through the bridge table on its own.
+- The cache's "template" tier (meant to reuse SQL across differently-dated
+  but same-shaped questions) collapsed *any* month/quarter/year into one
+  placeholder before hashing the cache key, then replayed the old literal
+  SQL verbatim — asking about March after someone asked about January would
+  silently return January's answer. Fixed by only templating genuinely
+  relative phrases ("last month") and adding the TTL check the exact-cache
+  tier already had.
+- SQL using a CTE (`WITH ... AS (...)`) was rejected as "hallucinated" because
+  the validator's table-reference scan didn't exclude CTE aliases, burning a
+  repair retry on valid SQL.
+- RBAC's `allowed_modules()` silently granted an unrecognized role the
+  default role's permissions instead of denying it outright.
+- The API had no exception handling at all — a model/network failure
+  produced a raw 500 with no audit-log entry, and blocked/clarification
+  responses always read back as HTTP 200.
+- Retrieval rebuilt the BM25/embedding indices from scratch on every single
+  question; the catalog was re-read from disk on every request too. Both
+  are now cached in-process.
+
+Full list, including 14 tables that had no retrieval synonyms and a handful
+of one-time catalog-build inefficiencies, is in the commit history.
 
 ## Known limitations
 

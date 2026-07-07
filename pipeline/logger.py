@@ -22,6 +22,8 @@ def log_event(ctx: PipelineContext) -> None:
         "success": bool(ctx.execution.success) if ctx.execution else (ctx.blocked_reason is None and ctx.clarification_question is None),
         "error": ctx.execution.error if ctx.execution else None,
         "blocked_reason": ctx.blocked_reason,
+        "sql_candidate": ctx.sql_candidate,
+        "tables_used": sorted(ctx.graph.all_tables) if ctx.graph else [],
     }
     with open(PIPELINE_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")

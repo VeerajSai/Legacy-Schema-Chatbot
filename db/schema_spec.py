@@ -733,7 +733,7 @@ MODULES = sorted({spec["module"] for spec in TABLES.values()})
 # between the same node pair. graph_expand.py must surface both.
 DISJOINT_PATH_PAIRS = [
     (("department", "manager_emp_id", "employee", "emp_id", "manages"),
-     ("emp_dept_assign", "emp_id", "emp_dept_assign", "dept_id", "works_in")),
+     ("emp_dept_assign", "emp_id", "dept_id", "works_in")),
 ]
 
 # a couple of legacy tables get intentionally mixed-case categorical values

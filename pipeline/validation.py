@@ -37,7 +37,8 @@ def validate_sql(sql: str, table_cards_by_name: dict[str, TableCard], role: str)
     if not isinstance(tree, exp.Query):
         return ValidationResult(is_valid=False, errors=["policy violation: only SELECT statements are allowed"])
 
-    parsed_tables = {t.name for t in tree.find_all(exp.Table)}
+    cte_names = {c.alias_or_name for c in tree.find_all(exp.CTE)}
+    parsed_tables = {t.name for t in tree.find_all(exp.Table)} - cte_names
 
     # Schema lint: every referenced table/column exists in the catalog.
     for table_name in parsed_tables:

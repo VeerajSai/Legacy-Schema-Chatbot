@@ -16,8 +16,19 @@ FLOAT_ROUND_DP = 4
 
 
 def _canon_value(v) -> str:
-    if isinstance(v, float):
-        return str(round(v, FLOAT_ROUND_DP))
+    # bool is an int subclass -- exclude it before the numeric check, or
+    # True/False would round-trip through float() as "1.0"/"0.0".
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return str(round(float(v), FLOAT_ROUND_DP))
+    if isinstance(v, str):
+        # ponytail: a numeric-looking string (e.g. a driver returning "1" for
+        # an INTEGER column) must canonicalize the same way the number 1 or
+        # 1.0 does, or the int/float unification above just moves the same
+        # false-mismatch bug onto int-vs-numeric-string instead of fixing it.
+        try:
+            return str(round(float(v), FLOAT_ROUND_DP))
+        except ValueError:
+            return v
     return str(v)
 
 

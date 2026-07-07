@@ -13,7 +13,15 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", text.lower()))
 
 
-def _kept_columns(question_tokens: set[str], card: TableCard) -> list[ColumnCard]:
+def _kept_columns(question_tokens: set[str], card: TableCard, keep_all: bool = False) -> list[ColumnCard]:
+    if keep_all:
+        # ponytail: bridge-only table (pulled in solely to complete a join
+        # path, not because it was topically retrieved) -- keep every column
+        # regardless of keyword overlap, since dropping its only
+        # human-readable column would leave the LLM unable to resolve an NL
+        # value (e.g. "Germany") into the code the join actually needs.
+        return list(card.columns)
+
     desc_tokens = _tokens(card.description) | _tokens(" ".join(card.synonyms))
     table_on_topic = bool(question_tokens & desc_tokens)
 
@@ -55,7 +63,8 @@ def prune_columns(
     prompt_lines: list[str] = []
     for name in expansion.all_tables:
         card = table_cards_by_name[name]
-        kept_columns = _kept_columns(question_tokens, card)
+        keep_all = name in expansion.bridge_tables
+        kept_columns = _kept_columns(question_tokens, card, keep_all=keep_all)
         tables[name] = [c.name for c in kept_columns]
         pruned_card = replace(card, columns=kept_columns)
         prompt_lines.append(pruned_card.to_prompt_text())
@@ -65,5 +74,15 @@ def prune_columns(
             f"{e.left_table}.{e.left_col} = {e.right_table}.{e.right_col}" for e in expansion.join_paths
         )
         prompt_lines.append(f"-- join path: {join_str}")
+
+    if expansion.ambiguous_paths:
+        # Two genuinely different relationships exist between the same
+        # tables (e.g. department<->employee "manages" vs "works_in"); tell
+        # the LLM both are real instead of silently using whichever "primary"
+        # path won the internal tie-break in graph_expand.py.
+        for path in expansion.ambiguous_paths:
+            hops = "; ".join(f"{e.left_table}.{e.left_col} = {e.right_table}.{e.right_col}" for e in path)
+            label = path[0].label or "?"
+            prompt_lines.append(f'-- ambiguous join, another valid path exists: {hops} (label "{label}")')
 
     return PrunedSchema(tables=tables, schema_text="\n".join(prompt_lines))

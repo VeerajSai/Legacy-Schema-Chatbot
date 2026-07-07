@@ -9,9 +9,26 @@ from __future__ import annotations
 
 import json
 
+import sqlglot
+from sqlglot import exp
+
 from config.settings import GOLDEN_SET_PATH, GOLDEN_SET_RESOLVED_PATH
 from contracts.db import get_connection
 from eval.metrics import canonicalize
+
+
+def _check_expected_tables(rec: dict) -> None:
+    """Guard against hand-edit drift between `sql` and `expected_tables` --
+    self-consistent today (spot-checked), but nothing enforced that before."""
+    tree = sqlglot.parse_one(rec["sql"], dialect="sqlite")
+    cte_names = {c.alias_or_name for c in tree.find_all(exp.CTE)}
+    referenced_tables = {t.name for t in tree.find_all(exp.Table)} - cte_names
+    expected_tables = set(rec["expected_tables"])
+    if not referenced_tables <= expected_tables:
+        raise RuntimeError(
+            f"golden_set.jsonl entry {rec['id']}: sql references tables "
+            f"{sorted(referenced_tables - expected_tables)} not present in expected_tables {sorted(expected_tables)}"
+        )
 
 
 def build() -> None:
@@ -24,6 +41,7 @@ def build() -> None:
             if not line:
                 continue
             rec = json.loads(line)
+            _check_expected_tables(rec)
             try:
                 cur.execute(rec["sql"])
                 rows = [tuple(r) for r in cur.fetchall()]

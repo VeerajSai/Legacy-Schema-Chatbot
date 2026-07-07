@@ -34,33 +34,24 @@ def _declared_edges(crawled: dict) -> list[JoinEdge]:
     ]
 
 
-def _apply_disjoint_path_labels(edges: list[JoinEdge]) -> list[JoinEdge]:
-    """Labels the known manages/works_in edges and adds a direct shortcut
-    edge for the bridge-table side, so both paths are visible as distinct
-    edges between the same two tables instead of only reachable two hops
-    away. Returns the extra synthesized edges (input list is mutated for
-    labels in place)."""
-    extra: list[JoinEdge] = []
-    for (lt, lc, rt, rc, label), (bt, bc1, _bt2, bc2, blabel) in DISJOINT_PATH_PAIRS:
+def _apply_disjoint_path_labels(edges: list[JoinEdge]) -> None:
+    """Labels the known manages/works_in edges in place: the direct
+    department->employee "manages" FK, and the two emp_dept_assign bridge
+    FKs as "works_in". Does not synthesize any edge -- the real 2-hop
+    works_in path via emp_dept_assign is what graph_expand.py's alternate-
+    route search (nx.shortest_simple_paths) surfaces as distinct from the
+    1-hop "manages" path."""
+    for (lt, lc, rt, rc, label), (bt, bc1, bc2, blabel) in DISJOINT_PATH_PAIRS:
         for e in edges:
             if (e.left_table, e.left_col, e.right_table, e.right_col) == (lt, lc, rt, rc):
                 e.label = label
-
-        ref_cols: dict[str, tuple[str, str]] = {}
-        for e in edges:
             if e.left_table == bt and e.left_col in (bc1, bc2):
                 e.label = blabel
-                ref_cols[e.left_col] = (e.right_table, e.right_col)
-        if bc1 in ref_cols and bc2 in ref_cols:
-            (t1, c1), (t2, c2) = ref_cols[bc1], ref_cols[bc2]
-            extra.append(JoinEdge(left_table=t1, left_col=c1, right_table=t2, right_col=c2,
-                                   declared=True, label=blabel, confidence=1.0))
-    return extra
 
 
 def build_join_graph(crawled: dict, inferred_edges: list[JoinEdge], modules: dict[str, str]) -> nx.MultiGraph:
     edges = _declared_edges(crawled) + list(inferred_edges)
-    edges += _apply_disjoint_path_labels(edges)
+    _apply_disjoint_path_labels(edges)
 
     G = nx.MultiGraph()
     for t in crawled:

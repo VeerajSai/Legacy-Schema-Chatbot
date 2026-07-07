@@ -34,3 +34,16 @@ def test_canonicalize_rounds_floats_within_tolerance():
 
 def test_canonicalize_distinguishes_floats_outside_tolerance():
     assert canonicalize([(1.0,)]) != canonicalize([(1.001,)])
+
+
+def test_execution_match_treats_int_and_float_as_equal():
+    # SQLite dynamic typing: golden value 5 (INTEGER affinity) vs a generated
+    # 5.0 (REAL affinity, e.g. from an expression) are the same logical value.
+    golden = [(5,)]
+    generated = [(5.0,)]
+    assert execution_match(golden, generated) is True
+
+
+def test_canonicalize_does_not_coerce_bools_to_floats():
+    # bool is an int subclass -- must not be rounded/stringified as "1.0".
+    assert canonicalize([(True,)]) == [("True",)]

@@ -32,8 +32,15 @@ def test_path_exists_between_ord_dtl_2_and_item_mst():
 
 def test_disjoint_department_employee_paths_not_collapsed():
     G = _graph()
-    edge_data = G.get_edge_data("department", "employee")
-    assert edge_data is not None
-    assert len(edge_data) >= 2, "manages/works_in edges collapsed into one"
-    labels = {d["label"] for d in edge_data.values()}
-    assert {"manages", "works_in"} <= labels
+    # direct FK: department.manager_emp_id -> employee.emp_id, labeled "manages"
+    direct = G.get_edge_data("department", "employee")
+    assert direct is not None
+    assert {"manages"} <= {d["label"] for d in direct.values()}
+
+    # real 2-hop path via the emp_dept_assign bridge table, both hops "works_in"
+    bridge_to_employee = G.get_edge_data("emp_dept_assign", "employee")
+    bridge_to_department = G.get_edge_data("emp_dept_assign", "department")
+    assert bridge_to_employee is not None
+    assert bridge_to_department is not None
+    assert {"works_in"} <= {d["label"] for d in bridge_to_employee.values()}
+    assert {"works_in"} <= {d["label"] for d in bridge_to_department.values()}

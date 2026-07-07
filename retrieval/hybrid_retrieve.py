@@ -11,6 +11,14 @@ from retrieval.bm25_index import BM25Index
 from retrieval.embed_index import EmbedIndex
 
 _cross_encoder: CrossEncoder | None = None
+# ponytail: process-lifetime cache of built indices, keyed by (role, table
+# set) -- the RBAC-scoped table set for a role is static within a running
+# process (same assumption contracts/rbac.py's lru_cache already makes about
+# static config), but keying on role alone would serve a stale index if the
+# same role is ever scoped against a different table set in the same
+# process (e.g. tests reusing a role across fixtures). Keying on the actual
+# table names is cheap and makes that impossible instead of just unlikely.
+_indices_by_role: dict[tuple[str, tuple[str, ...]], tuple[BM25Index, EmbedIndex]] = {}
 
 
 def _get_cross_encoder() -> CrossEncoder:
@@ -18,6 +26,17 @@ def _get_cross_encoder() -> CrossEncoder:
     if _cross_encoder is None:
         _cross_encoder = CrossEncoder(CROSS_ENCODER_NAME)
     return _cross_encoder
+
+
+def _get_indices(role: str, scoped_cards: dict[str, TableCard]) -> tuple[BM25Index, EmbedIndex]:
+    cache_key = (role, tuple(sorted(scoped_cards)))
+    if cache_key not in _indices_by_role:
+        bm25 = BM25Index()
+        bm25.build(scoped_cards)
+        dense = EmbedIndex()
+        dense.build(scoped_cards)
+        _indices_by_role[cache_key] = (bm25, dense)
+    return _indices_by_role[cache_key]
 
 
 def retrieve_tables(
@@ -30,10 +49,7 @@ def retrieve_tables(
     allowed = filter_tables_by_role({name: c.module for name, c in table_cards.items()}, role)
     scoped_cards = {name: c for name, c in table_cards.items() if name in allowed}
 
-    bm25 = BM25Index()
-    bm25.build(scoped_cards)
-    dense = EmbedIndex()
-    dense.build(scoped_cards)
+    bm25, dense = _get_indices(role, scoped_cards)
 
     bm25_top = bm25.query(question, RETRIEVAL_UNION_TOP_N)
     dense_top = dense.query(question, RETRIEVAL_UNION_TOP_N)

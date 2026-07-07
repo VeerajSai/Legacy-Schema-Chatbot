@@ -30,10 +30,6 @@ def test_rbac_filters_by_role():
     assert filtered == {"employee"}
 
 
-def test_unknown_role_falls_back_to_default():
-    assert allowed_modules("nonexistent_role") == allowed_modules("sales_analyst")
-
-
 def test_stub_llm_client_is_deterministic_and_offline():
     client = StubLLMClient(strong_responses={"orders": "SELECT * FROM ord_hdr"})
     resp = client.call_strong("system", "how many orders?")

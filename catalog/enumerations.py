@@ -16,6 +16,12 @@ def enumerate_low_cardinality(crawled: dict) -> dict[str, dict[str, list[str]]]:
         for table, info in crawled.items():
             cols: dict[str, list[str]] = {}
             for c in info["columns"]:
+                if c["pk"]:
+                    # ponytail: surrogate PKs are never hardcoded as SQL
+                    # literals and are always kept by column pruning anyway --
+                    # enumerating them (e.g. department.dept_id -> {1..22}) is
+                    # pure prompt-token waste.
+                    continue
                 col = c["name"]
                 count = cur.execute(f"SELECT COUNT(DISTINCT {col}) AS c FROM {table}").fetchone()["c"]
                 if 0 < count < LOW_CARDINALITY_THRESHOLD:

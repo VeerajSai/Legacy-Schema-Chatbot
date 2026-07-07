@@ -15,6 +15,11 @@ from collections import defaultdict
 from config.settings import CACHE_DB_PATH, GOLDEN_SET_RESOLVED_PATH, TABLE_RECALL_TARGET
 from eval.metrics import execution_match
 
+# Roles to evaluate: admin sees every module (upper bound); sales_analyst is
+# the UI's default restricted role, so its numbers are what a real user
+# actually experiences. Reporting admin alone hid this gap.
+ROLES = ("admin", "sales_analyst")
+
 
 def _reset_cache() -> None:
     # ponytail: eval must measure retrieval/execution quality, not whatever a
@@ -46,63 +51,68 @@ def run() -> dict:
 
     golden = _load_golden()
 
-    per_difficulty_total = defaultdict(int)
-    per_difficulty_correct = defaultdict(int)
-    table_recall_hits = 0
-    n_errors = 0
+    results = {}
+    for role in ROLES:
+        per_difficulty_total = defaultdict(int)
+        per_difficulty_correct = defaultdict(int)
+        table_recall_hits = 0
+        n_errors = 0
 
-    for rec in golden:
-        difficulty = rec["difficulty"]
-        per_difficulty_total[difficulty] += 1
-        expected_rows = [tuple(row) for row in rec["expected_rows"]]
-        expected_tables = set(rec["expected_tables"])
+        for rec in golden:
+            difficulty = rec["difficulty"]
+            per_difficulty_total[difficulty] += 1
+            expected_rows = [tuple(row) for row in rec["expected_rows"]]
+            expected_tables = set(rec["expected_tables"])
 
-        if answer_question is None:
-            n_errors += 1
-            continue
+            if answer_question is None:
+                n_errors += 1
+                continue
 
-        try:
-            ctx = answer_question(rec["question"], user_id="eval", role="admin")
+            try:
+                ctx = answer_question(rec["question"], user_id="eval", role=role)
 
-            generated_rows = ctx.execution.rows if ctx.execution and ctx.execution.rows else []
-            if execution_match(expected_rows, generated_rows):
-                per_difficulty_correct[difficulty] += 1
+                generated_rows = ctx.execution.rows if ctx.execution and ctx.execution.rows else []
+                if execution_match(expected_rows, generated_rows):
+                    per_difficulty_correct[difficulty] += 1
 
-            all_tables = set(getattr(ctx.graph, "all_tables", []) or []) if ctx.graph else set()
-            if expected_tables <= all_tables:
-                table_recall_hits += 1
-        except Exception as e:  # noqa: BLE001 -- one bad question must never kill the report
-            n_errors += 1
-            print(f"[{rec['id']}] ERROR: {type(e).__name__}: {e}")
+                all_tables = set(getattr(ctx.graph, "all_tables", []) or []) if ctx.graph else set()
+                if expected_tables <= all_tables:
+                    table_recall_hits += 1
+            except Exception as e:  # noqa: BLE001 -- one bad question must never kill the report
+                n_errors += 1
+                print(f"[{role}/{rec['id']}] ERROR: {type(e).__name__}: {e}")
 
-    n_total = len(golden)
-    n_correct = sum(per_difficulty_correct.values())
-    table_recall = table_recall_hits / n_total if n_total else 0.0
+        n_total = len(golden)
+        n_correct = sum(per_difficulty_correct.values())
+        table_recall = table_recall_hits / n_total if n_total else 0.0
 
-    print("\n=== Execution accuracy ===")
-    print(f"Overall: {n_correct}/{n_total} ({100 * n_correct / n_total:.1f}%)" if n_total else "no questions")
-    for diff in sorted(per_difficulty_total):
-        t, c = per_difficulty_total[diff], per_difficulty_correct[diff]
-        print(f"  {diff:28s} {c}/{t} ({100 * c / t:.1f}%)")
+        print(f"\n########## Role: {role} ##########")
+        print("\n=== Execution accuracy ===")
+        print(f"Overall: {n_correct}/{n_total} ({100 * n_correct / n_total:.1f}%)" if n_total else "no questions")
+        for diff in sorted(per_difficulty_total):
+            t, c = per_difficulty_total[diff], per_difficulty_correct[diff]
+            print(f"  {diff:28s} {c}/{t} ({100 * c / t:.1f}%)")
 
-    print("\n=== Table recall@k ===")
-    print(f"{table_recall_hits}/{n_total} ({100 * table_recall:.1f}%)"
-          + (" -- BELOW TARGET" if table_recall < TABLE_RECALL_TARGET else " -- meets target")
-          + f" (target {TABLE_RECALL_TARGET * 100:.0f}%)")
+        print("\n=== Table recall@k ===")
+        print(f"{table_recall_hits}/{n_total} ({100 * table_recall:.1f}%)"
+              + (" -- BELOW TARGET" if table_recall < TABLE_RECALL_TARGET else " -- meets target")
+              + f" (target {TABLE_RECALL_TARGET * 100:.0f}%)")
 
-    print(f"\nErrors/exceptions: {n_errors}/{n_total}")
+        print(f"\nErrors/exceptions: {n_errors}/{n_total}")
 
-    return {
-        "n_total": n_total,
-        "n_correct": n_correct,
-        "execution_accuracy": n_correct / n_total if n_total else 0.0,
-        "table_recall": table_recall,
-        "n_errors": n_errors,
-        "per_difficulty": {
-            d: per_difficulty_correct[d] / per_difficulty_total[d]
-            for d in per_difficulty_total
-        },
-    }
+        results[role] = {
+            "n_total": n_total,
+            "n_correct": n_correct,
+            "execution_accuracy": n_correct / n_total if n_total else 0.0,
+            "table_recall": table_recall,
+            "n_errors": n_errors,
+            "per_difficulty": {
+                d: per_difficulty_correct[d] / per_difficulty_total[d]
+                for d in per_difficulty_total
+            },
+        }
+
+    return results
 
 
 if __name__ == "__main__":

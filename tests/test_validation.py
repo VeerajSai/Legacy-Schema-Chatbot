@@ -55,3 +55,9 @@ def test_flags_hallucinated_column():
     result = validate_sql(sql, {"ord_hdr": ORD_HDR_CARD}, "admin")
     assert not result.is_valid
     assert any("made_up_column" in e for e in result.errors)
+
+
+def test_cte_alias_not_treated_as_hallucinated_table():
+    sql = "WITH recent AS (SELECT * FROM ord_hdr) SELECT * FROM recent"
+    result = validate_sql(sql, {"ord_hdr": ORD_HDR_CARD}, "admin")
+    assert not any("hallucinated identifier: table" in e for e in result.errors)

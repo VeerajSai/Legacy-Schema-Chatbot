@@ -5,6 +5,7 @@ Runnable as `python -m catalog.build_catalog`.
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 from config.settings import JOIN_GRAPH_PATH, TABLE_CARDS_PATH
@@ -75,7 +76,12 @@ def build_catalog() -> dict[str, TableCard]:
     return cards
 
 
+@lru_cache(maxsize=1)
 def load_table_cards(path=TABLE_CARDS_PATH) -> dict[str, TableCard]:
+    # ponytail: static offline-built artifact, never changes within a
+    # process -- same pattern as contracts/rbac.py's _rbac_config(). Safe
+    # since every production caller (pipeline/orchestrator.py) uses the
+    # default path.
     data = json.loads(Path(path).read_text())
     return {d["table"]: TableCard.from_dict(d) for d in data}
 

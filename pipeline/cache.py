@@ -8,20 +8,21 @@ import re
 import sqlite3
 import time
 
+import numpy as np
+
 from config.settings import CACHE_DB_PATH, SEMANTIC_CACHE_THRESHOLD, EXACT_CACHE_TTL_SECONDS
 
-_MONTHS = (
-    "january|february|march|april|may|june|july|august|september|october|"
-    "november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec"
-)
+# ponytail: only relative date phrases collapse to <DATE> — two different
+# absolute periods (march vs january, 2024 vs 2026) must hash to different
+# template keys since the cached SQL has the literal period baked in with no
+# re-parameterization. A relative phrase re-hitting within TTL is fine
+# because a real system would generate SQL with relative date functions.
 _TEMPLATE_PATTERNS = [
-    re.compile(r"\b(" + _MONTHS + r")\b", re.I),
     re.compile(r"\blast\s+(quarter|month|year|week)\b", re.I),
     re.compile(r"\bthis\s+(quarter|month|year|week)\b", re.I),
-    re.compile(r"\b(q[1-4])\s+\d{4}\b", re.I),
-    re.compile(r"\b\d{4}\b"),  # 4-digit years
-    re.compile(r"\b\d{1,2}/\d{1,2}(/\d{2,4})?\b"),  # dates like 3/15/2026
 ]
+
+_SEMANTIC_CACHE_CAP = 500
 
 # ponytail: flat "operational" TTL bucket by default; only switch to the
 # longer "historical" bucket when the question smells like an aggregate over
@@ -101,28 +102,24 @@ def cache_lookup(question: str, role: str) -> tuple[str | None, str | None]:
 
         template_key = _hash(_templatize(question), role)
         row = conn.execute(
-            "SELECT sql FROM template_cache WHERE key = ?", (template_key,)
+            "SELECT sql, created_at FROM template_cache WHERE key = ?", (template_key,)
         ).fetchone()
         if row is not None:
-            return "template", row[0]
+            sql, created_at = row
+            if time.time() - created_at <= _ttl_seconds(question):
+                return "template", sql
 
         rows = conn.execute(
-            "SELECT question, sql, embedding FROM semantic_cache WHERE role = ?", (role,)
+            "SELECT sql, embedding FROM semantic_cache WHERE role = ?", (role,)
         ).fetchall()
         if rows:
-            import numpy as np
-
-            query_vec = _get_embedder().encode([norm])[0]
-            best_sql, best_score = None, -1.0
-            for _q, sql, blob in rows:
-                vec = np.frombuffer(blob, dtype="float32")
-                score = float(
-                    np.dot(query_vec, vec) / (np.linalg.norm(query_vec) * np.linalg.norm(vec) + 1e-9)
-                )
-                if score > best_score:
-                    best_score, best_sql = score, sql
-            if best_score >= SEMANTIC_CACHE_THRESHOLD:
-                return "semantic", best_sql
+            query_vec = _get_embedder().encode([norm])[0].astype("float32")
+            query_vec = query_vec / (np.linalg.norm(query_vec) + 1e-9)
+            matrix = np.array([np.frombuffer(blob, dtype="float32") for _sql, blob in rows])
+            scores = matrix @ query_vec
+            best_idx = int(np.argmax(scores))
+            if float(scores[best_idx]) >= SEMANTIC_CACHE_THRESHOLD:
+                return "semantic", rows[best_idx][0]
         return None, None
     finally:
         conn.close()
@@ -142,6 +139,22 @@ def cache_store(question: str, role: str, sql: str) -> None:
             (_hash(_templatize(question), role), role, question, sql, now),
         )
         vec = _get_embedder().encode([norm])[0].astype("float32")
+        vec = vec / (np.linalg.norm(vec) + 1e-9)
+
+        # ponytail: prune-on-insert row cap, not a background eviction job —
+        # revisit if semantic_cache write volume ever makes this the hot path.
+        count = conn.execute(
+            "SELECT COUNT(*) FROM semantic_cache WHERE role = ?", (role,)
+        ).fetchone()[0]
+        if count >= _SEMANTIC_CACHE_CAP:
+            old_rowids = conn.execute(
+                "SELECT rowid FROM semantic_cache WHERE role = ? ORDER BY created_at ASC LIMIT ?",
+                (role, count - _SEMANTIC_CACHE_CAP + 1),
+            ).fetchall()
+            conn.executemany(
+                "DELETE FROM semantic_cache WHERE rowid = ?", old_rowids
+            )
+
         conn.execute(
             "INSERT INTO semantic_cache (role, question, sql, embedding, created_at) VALUES (?,?,?,?,?)",
             (role, question, sql, vec.tobytes(), now),

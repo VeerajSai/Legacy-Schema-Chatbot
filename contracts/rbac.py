@@ -18,7 +18,7 @@ def _rbac_config() -> dict:
 def allowed_modules(role: str) -> set[str]:
     roles = _rbac_config()["roles"]
     if role not in roles:
-        role = _rbac_config()["default_role"]
+        return set()
     return set(roles[role]["modules"])
 
 
