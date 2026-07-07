@@ -1,4 +1,4 @@
-# Architecture
+# Schemantic — Architecture
 
 This implements the design in [`docs/original-design-doc.md`](docs/original-design-doc.md):
 an offline plane that builds a schema catalog once (and on schema drift), and

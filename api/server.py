@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from api.schemas import ChatRequest, ChatResponse, HealthResponse
 
-app = FastAPI(title="NL2SQL Chatbot API")
+app = FastAPI(title="Schemantic API")
 
 
 @app.get("/health", response_model=HealthResponse)

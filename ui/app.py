@@ -7,8 +7,8 @@ from pipeline.orchestrator import answer_question
 
 ROLES = ["admin", "sales_analyst", "finance_analyst", "hr_admin", "exec"]
 
-st.set_page_config(page_title="NL2SQL Chatbot", page_icon="\U0001F4CA")
-st.title("NL2SQL Chatbot")
+st.set_page_config(page_title="Schemantic", page_icon="\U0001F4CA")
+st.title("Schemantic")
 st.caption("Ask a question about the legacy database in plain English.")
 
 role = st.selectbox("Role", ROLES, index=ROLES.index("sales_analyst"))

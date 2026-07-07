@@ -1,8 +1,16 @@
-# NL2SQL Chatbot over a 74-Table Legacy Schema
+# Schemantic
 
-A chatbot that turns natural-language questions into SQL, retrieving only the
-schema slice a question needs instead of stuffing an entire legacy database
-into every prompt. This repo implements the design in
+**A natural-language chatbot for a 74-table legacy database that nobody
+remembers the schema for.**
+
+Legacy schemas don't fail on the SQL — `SELECT`, `JOIN`, `WHERE` are the easy
+part. They fail on knowing *which of 74 cryptically-named tables* even
+matters for a given question, and how they actually connect (`ord_dtl_2`?
+`emp_dept_assign`?). Schemantic's answer is schema linking, not prompt
+stuffing: retrieve the ~5-8 relevant tables out of 74 via hybrid search,
+expand across the join graph to pull in the bridge tables nobody would think
+to name, prune to the columns that matter, then hand a small, precise slice
+of schema to the model. This repo implements the design in
 [`docs/original-design-doc.md`](docs/original-design-doc.md) — read that
 first for the "why."
 
@@ -85,8 +93,17 @@ Overall: 0/56 (0.0%)
   multi_hop_cross_module       0/14 (0.0%)
   single_table                 0/12 (0.0%)
 
+=== Table recall@k ===
+51/56 (91.1%) -- target 95%
+
 Errors/exceptions: 0/56
 ```
+
+Table recall@k doesn't need a live model — it only checks that hybrid
+retrieval + graph expansion (stages 3-4) surface every table the golden
+question actually needs, so it's the one real accuracy signal available
+without an API key. `eval/run_eval.py` clears the query cache before each
+run so a cache hit (which skips retrieval) can't silently zero this out.
 
 Confirmed working in this same integration pass (see `ARCHITECTURE.md` for
 the stages involved):
@@ -130,6 +147,15 @@ only missing ingredient is a live model.
   has nothing to summarize until that's wired up
 - A cache hit skips retrieval, so `tables_used` is empty on cached answers
   (the cache remembers the SQL, not which tables it touched)
+- Table recall@k caps out around 91%, not 100%: graph expansion (stage 4)
+  only searches for bridge tables *between pairs already retrieved* in
+  stage 3, so a lookup table that's both semantically quiet (e.g.
+  `country_lkp`) and not on the shortest path between two other retrieved
+  tables gets dropped — all 5 misses in the current run are exactly this
+  shape (a `*_lkp` table, or `department`/`emp_dept_assign` when no other
+  retrieved table routes through them). Widening stage 4 to also pull each
+  candidate's direct 1-hop neighbors would close most of this gap at the
+  cost of a larger prompt per question
 
 ## License
 

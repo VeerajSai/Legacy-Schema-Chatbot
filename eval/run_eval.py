@@ -12,8 +12,18 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 
-from config.settings import GOLDEN_SET_RESOLVED_PATH, TABLE_RECALL_TARGET
+from config.settings import CACHE_DB_PATH, GOLDEN_SET_RESOLVED_PATH, TABLE_RECALL_TARGET
 from eval.metrics import execution_match
+
+
+def _reset_cache() -> None:
+    # ponytail: eval must measure retrieval/execution quality, not whatever a
+    # prior run (or manual pipeline testing) happened to leave cached -- a
+    # cache hit skips retrieval entirely, which would silently zero out
+    # table-recall for every cached question. Delete-and-rebuild is simpler
+    # than adding a use_cache flag through cache_lookup/cache_store.
+    if CACHE_DB_PATH.exists():
+        CACHE_DB_PATH.unlink()
 
 
 def _load_golden():
@@ -26,6 +36,7 @@ def _load_golden():
 
 
 def run() -> dict:
+    _reset_cache()
     try:
         from pipeline.orchestrator import answer_question  # may not exist/work yet
     except Exception as e:  # noqa: BLE001 -- missing/broken orchestrator must not crash the report
